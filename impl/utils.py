@@ -32,6 +32,30 @@ def marker_from_corners(crop, corners, t_size):
 
     return out
 
+def custom_marker_from_corners(crop, corners, t_size):
+
+    dst = np.array([[0, 0], [0, t_size - 1], [t_size - 1, t_size - 1], [t_size - 1, 0]]
+    ).astype(np.float32)
+
+
+    c1 = [corners[0] * 128, corners[1] * 128]
+    c2 = [corners[2] * 128, corners[3] * 128]
+    c3 = [corners[4] * 128, corners[5] * 128]
+    c4 = [corners[6] * 128, corners[7] * 128]
+
+    src = np.clip(np.array([c1, c2, c3, c4]), 0, 128).astype(np.float32)
+
+    ratio = 14/10
+    center = np.mean(src, axis=0)
+    vectors = src - center
+    outer_corners = np.array(center + vectors * ratio).astype(np.float32)
+
+    h = cv2.getPerspectiveTransform(outer_corners, dst)
+    out = cv2.warpPerspective(crop, h, (t_size, t_size))
+
+    return out
+
+
 
 def IoU(a, b):
     warnings.simplefilter(action="ignore", category=RuntimeWarning)

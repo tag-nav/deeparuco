@@ -7,10 +7,15 @@ from tensorflow.keras.layers import (
     Flatten,
     Input,
     MaxPooling2D,
+    Dropout,
     PReLU,
+    ReLU,
     concatenate,
+    Lambda
 )
 from tensorflow.keras.models import Model
+from keras.layers import BatchNormalization
+import tensorflow as tf
 
 
 def regressor_mobilenet():
@@ -21,6 +26,27 @@ def regressor_mobilenet():
     x = Flatten()(x)
 
     x = Dense(256)(x)
+    x = PReLU()(x)
+
+    x = Dense(64)(x)
+    x = PReLU()(x)
+
+    output_layer = Dense(8, activation="sigmoid")(x)
+
+    model = Model(input_layer, output_layer)
+    return model
+
+def custom_regressor():
+    backbone = MobileNetV3Small(weights='imagenet', include_top=False)
+
+    input_layer = Input(shape=(128, 128, 3))
+    x = backbone(input_layer)
+    x = Flatten()(x)
+
+    x = Dense(256)(x)
+    x = PReLU()(x)
+
+    x = Dense(128)(x)
     x = PReLU()(x)
 
     x = Dense(64)(x)
@@ -122,4 +148,41 @@ def simple_decoder():
     output_layer = Conv2D(1, (1, 1), padding="valid", activation="sigmoid")(x)
 
     model = Model(input_layer, output_layer)
+    return model
+
+def extract_border(x):
+    top_row = x[:, 0, :]         
+    bottom_row = x[:, -1, :]     
+    left_column = x[:, 1:-1, 0]  
+    right_column = x[:, 1:-1, -1]
+    
+    outer_border = tf.concat([
+        top_row,                   
+        right_column,              
+        bottom_row[:, ::-1],       
+        left_column[::-1]          
+    ], axis=1)
+
+    return outer_border
+
+def custom_decoder():
+    input_layer = Input(shape=(128, 128, 1))
+
+    x = Conv2D(16, (5, 5), padding="valid")(input_layer)
+    x = PReLU()(x)
+    x = MaxPooling2D()(x)
+
+    x = Conv2D(8, (3, 3), padding="valid")(x)
+    x = PReLU()(x)
+    x = MaxPooling2D()(x)
+
+    x = Conv2D(4, (3, 3), padding="valid")(x)
+    x = PReLU()(x)
+    x = MaxPooling2D()(x)
+
+    output_layer = Conv2D(1, (1, 1), padding="valid", activation="sigmoid")(x)
+
+    border_output = Lambda(extract_border)(output_layer)
+
+    model = Model(input_layer, border_output)
     return model

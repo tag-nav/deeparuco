@@ -8,10 +8,11 @@ import numpy as np
 from tensorflow.keras.utils import Sequence
 from tqdm import tqdm
 
-from .aruco import id_to_bits
+# from .aruco import id_to_bits
+from .customTag import id_to_bits
 from .heatmaps import pos_to_heatmap
 from .shadows import circular, gradient, lines, perlin
-from .utils import marker_from_corners, ordered_corners
+from .utils import marker_from_corners, ordered_corners, custom_marker_from_corners
 
 rot_codes = [cv2.ROTATE_90_CLOCKWISE, cv2.ROTATE_180, cv2.ROTATE_90_COUNTERCLOCKWISE]
 
@@ -374,6 +375,95 @@ class decoder_gen(Sequence):
                         shadows = self.lpattern_cache[p_num - 1]
 
                     marker = np.clip(np.multiply(marker, shadows), 0, 1)
+
+            markers.append(marker)
+            labels.append(bits)
+
+        return np.array(markers), np.array(labels)
+
+    def __len__(self):
+        return self.length
+
+    def __getitem__(self, index):
+        self.iterator = index * self.batch_size
+        marker, bits = self.__data_generation()
+
+        return marker, bits
+
+    def on_epoch_end(self):
+        self.iterator = 0
+
+# 
+
+class custom_decoder_gen(Sequence):
+    def __init__(
+        self, img_dataframe, source_dir, batch_size, augment=True, normalize=False
+    ):
+        self.batch_size = batch_size
+        self.normalize = normalize
+        self.augment = augment
+
+        self.crops = []
+        self.corners = []
+        self.labels = []
+        self.orientations = []
+        self.id = []
+        self.files = []
+        self.rot = []
+
+        self.lpattern_cache = []
+
+        print("Loading data...")
+
+        for _, row in tqdm(img_dataframe.iterrows(), total=img_dataframe.shape[0]):
+            crop = cv2.imread(source_dir + "/" + row["pic"])
+            crop = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
+
+            if self.normalize == True:
+                crop = (crop - np.min(crop)) / (np.max(crop) - np.min(crop) + 1e-9)
+
+            corners = np.array(
+                [
+                    row["c1_x"],
+                    row["c1_y"],
+                    row["c2_x"],
+                    row["c2_y"],
+                    row["c3_x"],
+                    row["c3_y"],
+                    row["c4_x"],
+                    row["c4_y"],
+                ]
+            )
+            corners = ordered_corners(corners[[0, 2, 4, 6]], corners[[1, 3, 5, 7]])
+    
+            bits = np.array(id_to_bits(row["id"])).reshape(-1, 1)
+
+            self.crops.append(crop)
+            self.corners.append(corners)
+            self.labels.append(bits)
+            self.orientations.append(row["rot"])
+            self.id.append(row["id"])
+            self.files.append(row["pic"])
+            self.rot.append(row['rot'])
+
+        temp = list(zip(self.crops, self.corners, self.labels, self.orientations))
+        # shuffle(temp)
+        self.crops, self.corners, self.labels, self.orientations = zip(*temp)
+
+        self.length = ceil(len(self.crops) / self.batch_size)
+
+    def __data_generation(self):
+        markers = []
+        labels = []
+
+        for i in range(self.iterator, self.iterator + self.batch_size):
+            crop = self.crops[i % self.length]
+            corners = self.corners[i % self.length]
+            bits = self.labels[i % self.length]
+            orientation = self.orientations[i % self.length]
+
+            marker = custom_marker_from_corners(crop, corners, 128)
+            marker = cv2.rotate(marker, rot_codes[orientation - 1])
 
             markers.append(marker)
             labels.append(bits)

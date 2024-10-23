@@ -8,7 +8,7 @@ from perlin_numpy import generate_fractal_noise_2d
 
 sys.path.insert(0, "../")
 
-from impl.effects import rotate3d
+from deeparuco.impl.effects import rotate3d
 
 
 def gradient(width, height):
