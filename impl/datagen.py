@@ -463,7 +463,8 @@ class custom_decoder_gen(Sequence):
             orientation = self.orientations[i % self.length]
 
             marker = custom_marker_from_corners(crop, corners, 128)
-            marker = cv2.rotate(marker, rot_codes[orientation - 1])
+            if orientation != 0:
+                marker = cv2.rotate(marker, rot_codes[orientation - 1])
 
             markers.append(marker)
             labels.append(bits)

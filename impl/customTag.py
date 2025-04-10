@@ -3,7 +3,7 @@ import cv2
 from random import random, randint
 
 def id_to_bits(id):
-    txt_file = '../codebook/apriltagCustom52h12_codebook_orig.txt'
+    txt_file = '/home/su/Infrared_apriltag_detection/deeparuco/codebook/apriltagCustom52h12_codebook_orig.txt'
     result = 0
     with open(txt_file, 'r') as infile:
         for line in infile:
