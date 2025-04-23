@@ -9,7 +9,7 @@ from tensorflow.keras.utils import Sequence
 from tqdm import tqdm
 
 # from .aruco import id_to_bits
-from .customTag import id_to_bits
+from .customTag import id_to_bits, rotate_ccw
 from .heatmaps import pos_to_heatmap
 from .shadows import circular, gradient, lines, perlin
 from .utils import marker_from_corners, ordered_corners, custom_marker_from_corners
@@ -410,6 +410,8 @@ class custom_decoder_gen(Sequence):
         self.id = []
         self.files = []
         self.rot = []
+        self.bit = []
+        self.rotated_bit = []
 
         self.lpattern_cache = []
 
@@ -445,6 +447,7 @@ class custom_decoder_gen(Sequence):
             self.id.append(row["id"])
             self.files.append(row["pic"])
             self.rot.append(row['rot'])
+            self.bit.append(bits)
 
         temp = list(zip(self.crops, self.corners, self.labels, self.orientations))
         # shuffle(temp)
@@ -463,8 +466,11 @@ class custom_decoder_gen(Sequence):
             orientation = self.orientations[i % self.length]
 
             marker = custom_marker_from_corners(crop, corners, 128)
-            if orientation != 0:
-                marker = cv2.rotate(marker, rot_codes[orientation - 1])
+            # if orientation != 0:
+            #     marker = cv2.rotate(marker, rot_codes[orientation - 1])
+            for _ in range(orientation):
+                bits = rotate_ccw(bits)
+            self.rotated_bit.append(bits)
 
             markers.append(marker)
             labels.append(bits)

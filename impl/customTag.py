@@ -3,7 +3,7 @@ import cv2
 from random import random, randint
 
 def id_to_bits(id):
-    txt_file = '/home/su/Infrared_apriltag_detection/deeparuco/codebook/apriltagCustom52h12_codebook_orig.txt'
+    txt_file = '/home/suyeonchoi/Infrared_apriltag_detection/deeparuco/codebook/apriltagCustom52h12_codebook_orig.txt'
     result = 0
     with open(txt_file, 'r') as infile:
         for line in infile:
@@ -43,24 +43,25 @@ def get_marker(id, size = 512, border_width = 1.0):
 
 def rotate_ccw(border_points):
     """
-    Rotate a 1D array of 52 border points counterclockwise by 90 degrees.
+    Rotate a 1D array of 52 border points (14x14 grid, excluding corners)
     """
-    # Split the 1D array into the respective parts of the border (for 14x14 grid):
-    top_row = border_points[:14]               # First 14 elements (top row)
-    right_column = border_points[14:26]        # Next 12 elements (right column)
-    bottom_row = border_points[26:40]          # Next 14 elements (bottom row, reversed)
-    left_column = border_points[40:52]         # Last 12 elements (left column, reversed)
+    assert len(border_points) == 52, "Expected 52 border points (13 per side, excluding corners)."
 
-    # Rotate the points: top -> left, left -> bottom, bottom -> right, right -> top
-    new_top_row = right_column                 # Right column becomes the new top row
-    new_right_column = bottom_row[::-1]        # Bottom row becomes the new right column
-    new_bottom_row = left_column               # Left column becomes the new bottom row
-    new_left_column = top_row[::-1]            # Top row becomes the new left column
+    # Extract the sides
+    top    = border_points[0:13]           # left to right (excluding corners)
+    right  = border_points[13:26]          # top to bottom (excluding corners)
+    bottom = border_points[26:39]          # right to left (excluding corners, reversed)
+    left   = border_points[39:52]          # bottom to top (excluding corners, reversed)
 
-    # Concatenate the rotated border points back into a 1D array
-    rotated_border_points = np.concatenate([new_top_row, new_right_column, new_bottom_row, new_left_column])
+    # Rotate:
+    new_top    = right                     # right becomes new top (same order)
+    new_right  = bottom                    # bottom becomes new right (already reversed)
+    new_bottom = left                      # left becomes new bottom (already reversed)
+    new_left   = top                       # top becomes new left (must reverse)
 
-    return rotated_border_points
+    # Concatenate to form new border
+    rotated = np.concatenate([new_top, new_right, new_bottom, new_left])
+    return rotated
 
 
 ids_as_bits = [id_to_bits(i) for i in range(250)]
